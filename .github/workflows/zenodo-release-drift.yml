@@ -1,0 +1,42 @@
+name: Zenodo Release Drift
+
+on:
+  schedule:
+    - cron: "0 12 * * 1"
+  workflow_dispatch:
+
+jobs:
+  check-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install uv
+          uv pip install -e .
+
+      - name: Check repository for drift
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          zenodo-release-drift lint ${{ github.repository }}
+
+      - name: Create issue if drift detected
+        if: always()
+        uses: peter-evans/create-issue-from-file@v5
+        with:
+          issue-number: 1
+          title: Zenodo Release Drift Detected
+          content: |
+            A release drift was detected in this repository.
+
+            Please check the latest workflow run for details.
+            Repository: ${{ github.repository }}
+            Run ID: ${{ github.run_id }}
+          labels: drift, maintenance
